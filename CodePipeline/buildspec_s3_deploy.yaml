@@ -1,0 +1,11 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo AWS cli
+      - apt-get update
+      - apt-get install -y awscli
+  build:
+    commands:
+      - aws s3 cp --recursive ./Cloudformation s3://craig.yourintranet.co.uk
