@@ -4,7 +4,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   This is the initial cloudformation template for the aws console demo.
   The documentation and git repo for this project is contained at:
-  https://github.com/limivorous/aws-console-demo
+  https://github.com/limivorous/aws-console-demo.
 
 Parameters:
   pDemoSubnet:
@@ -289,8 +289,8 @@ Resources:
       RuleAction: allow
       Egress: false
       CidrBlock: 0.0.0.0/0 #Not as much of a problem as this is hand off traffic.
-        PortRange:
-        From: 32768
+      PortRange:
+        From: 1024
         To: 65535
 
   #NACL Rules Public
@@ -306,7 +306,7 @@ Resources:
       Egress: true
       CidrBlock: 0.0.0.0/0 #Also not so much of a problem as this is hand off traffic
       PortRange:
-        From: 32768
+        From: 1024
         To: 65535
 
 
