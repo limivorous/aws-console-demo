@@ -8,4 +8,4 @@ phases:
       - apt-get install -y awscli
   build:
     commands:
-      - aws s3 cp --recursive ./Cloudformation s3://craig.yourintranet.co.uk
+      - aws s3 cp --recursive ./Cloudformation s3://github-limivorous/aws-console-demo
