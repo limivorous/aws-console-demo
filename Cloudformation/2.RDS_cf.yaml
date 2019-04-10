@@ -1,0 +1,115 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  This is the cloudformation for the RDS demo.
+  The documentation and git repo for this project is contained at:
+  https://github.com/limivorous/aws-console-demo.
+
+Parameters:
+
+  pDatabaseName:
+    Description: What name would you like for the database? If you don't know then leave this as is.
+    Type: String
+    Default: "PreBuilt"
+  pDatabaseSize:
+    Description: What instance would you like for the database? If you don't know then leave this as is.
+    Type: String
+    Default: "db.m4.large"
+  pDBUsername:
+    Description: What username would you like for the database? If you don't know then leave this as is.
+    Type: String
+    Default: "sysdba"
+  pDBpassword:
+    Description: What password would you like for the database? If you don't know then leave this as is.
+    Type: String
+    Default: "NeVerused879"
+  pDataPrivateSubnetA:
+    Description: The Subnet ID of the data subnet (A)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Subnet::Id>'
+    Default: DataSubnetAID
+  pDataPrivateSubnetB:
+    Description: The Subnet ID of the data subnet (B)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Subnet::Id>'
+    Default: DataSubnetBID
+  pDataPrivateSubnetC:
+    Description: The Subnet ID of the data subnet (C)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Subnet::Id>'
+    Default: DataSubnetCID
+  pDemoVPC:
+    Description: The Demo VPC ID
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>'
+    Default: DemoVPCID
+  pWindowsServerSecurityGroup:
+    Description: The Windows Server Security Group ID
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::SecurityGroup::Id>'
+    Default: WindowsSSG
+
+
+Resources:
+
+
+  ###################################
+  #
+  #  Security Groups
+  #
+  ###################################
+
+  DatabaseServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref pDemoVPC
+      GroupName: 'Demo Database Security Group'
+      GroupDescription: 'Enable Database Access'
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref pWindowsServerSecurityGroup # Only allows access from the Windows server(s).
+          FromPort: 1433
+          IpProtocol: tcp
+          ToPort: 1433
+      Tags:
+        - Key: Name
+          Value: 'Demo Database Security Group'
+
+
+  ###################################
+  #
+  #  Database Groups
+  #
+  ###################################
+
+  DataTierSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: 'Demo Database Subnet Group'
+      DBSubnetGroupName: 'Demo-Data-Subnet-Grp'
+      SubnetIds:
+        - !Ref pDataPrivateSubnetA
+        - !Ref pDataPrivateSubnetB
+        - !Ref pDataPrivateSubnetC
+
+
+  ###################################
+  #
+  #  Database (SQL Server in this case)
+  #
+  ###################################
+
+
+  SQLServerInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 200
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref pDatabaseSize
+      DBInstanceIdentifier: !Ref pDatabaseName
+      DBSubnetGroupName: !Ref DataTierSubnetGroup
+      Engine: sqlserver-se
+      LicenseModel: license-included
+      MultiAZ: true
+      MasterUsername: !Ref pDBUsername
+      MasterUserPassword: !Ref pDBpassword
+      StorageType: gp2
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !GetAtt DatabaseServerSecurityGroup.GroupId

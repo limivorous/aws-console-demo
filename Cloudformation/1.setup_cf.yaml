@@ -12,22 +12,6 @@ Parameters:
     Type: String
     Default: 10.90.128.0/20 #This default gives us the range to 10.90.143.254
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-  pDatabaseName:
-    Description: What name would you like for the database? If you don't know then leave this as is.
-    Type: String
-    Default: "PreBuilt"
-  pDatabaseSize:
-    Description: What instance would you like for the database? If you don't know then leave this as is.
-    Type: String
-    Default: "db.m4.large"
-  pDBUsername:
-    Description: What username would you like for the database? If you don't know then leave this as is.
-    Type: String
-    Default: "sysdba"
-  pDBpassword:
-    Description: What password would you like for the database? If you don't know then leave this as is.
-    Type: String
-    Default: "NeVerused879"
 
 Resources:
 
@@ -53,6 +37,13 @@ Resources:
         - Key: Name
           Value: 'Demo VPC'
 
+  DemoVPCSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Description: "The DemoVPC ID"
+      Name: "DemoVPCID"
+      Type: String # AWS::EC2::VPC::Id
+      Value: !Ref DemoVPC
 
   ###################################
   #
@@ -126,6 +117,28 @@ Resources:
       Tags:
         - Key: Name
           Value: 'Demo Data Subnet C'
+
+  DemoDataPrivateSubnetASSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Description: "The DataSubnet A ID"
+      Name: "DataSubnetAID"
+      Type: String # AWS::EC2::Subnet::Id
+      Value: !Ref DataPrivateSubnetA
+  DemoDataPrivateSubnetBSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Description: "The DataSubnet B ID"
+      Name: "DataSubnetBID"
+      Type: String # AWS::EC2::Subnet::Id
+      Value: !Ref DataPrivateSubnetB
+  DemoDataPrivateSubnetCSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Description: "The DataSubnet C ID"
+      Name: "DataSubnetCID"
+      Type: String # AWS::EC2::Subnet::Id
+      Value: !Ref DataPrivateSubnetC
 
 
   ###################################
@@ -333,66 +346,10 @@ Resources:
         - Key: Name
           Value: 'Demo Windows Security Group'
 
-
-  DatabaseServerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  DemoWindowsSSGSSM:
+    Type: "AWS::SSM::Parameter"
     Properties:
-      VpcId: !Ref DemoVPC
-      GroupName: 'Demo Database Security Group'
-      GroupDescription: 'Enable RDP Access'
-      SecurityGroupIngress:
-        - SourceSecurityGroupId: !Ref WindowsServerSecurityGroup # Only allows access from the Windows server.
-          FromPort: 1433
-          IpProtocol: tcp
-          ToPort: 1433
-      Tags:
-        - Key: Name
-          Value: 'Demo Database Security Group'
-
-
-  ###################################
-  #
-  #  Database Groups
-  #
-  ###################################
-
-  DataTierSubnetGroup:
-    Type: "AWS::RDS::DBSubnetGroup"
-    Properties:
-      DBSubnetGroupDescription: 'Demo Database Subnet Group'
-      DBSubnetGroupName: 'Demo-Data-Subnet-Grp'
-      SubnetIds:
-        - !Ref DataPrivateSubnetA
-        - !Ref DataPrivateSubnetB
-        - !Ref DataPrivateSubnetC
-
-
-  ###################################
-  #
-  #  Database (SQL Server in this case)
-  #
-  ###################################
-
-
-  SQLServerInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      AllocatedStorage: 200
-      AllowMajorVersionUpgrade: true
-      AutoMinorVersionUpgrade: true
-      DBInstanceClass: !Ref pDatabaseSize
-      DBInstanceIdentifier: !Ref pDatabaseName
-      DBSubnetGroupName: !Ref DataTierSubnetGroup
-      Engine: sqlserver-se
-      LicenseModel: license-included
-      MultiAZ: true
-      MasterUsername: !Ref pDBUsername
-      MasterUserPassword: !Ref pDBpassword
-      StorageType: gp2
-      StorageEncrypted: true
-      VPCSecurityGroups:
-        - !GetAtt DatabaseServerSecurityGroup.GroupId
-
-
-
-
+      Description: "The Windows Server Security Group ID"
+      Name: "WindowsSSG"
+      Type: String # AWS::EC2::SecurityGroup::Id
+      Value: !Ref WindowsServerSecurityGroup

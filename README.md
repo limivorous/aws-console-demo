@@ -33,6 +33,6 @@ If you wish to run is manually the cloudformation template 1.setup_cf.yaml is co
 ## Available demos
 Once the above steps have been completed there are 3 demos which can be run starting with the introduction demo.  
 You must run the introduction demo first and then run whichever of the others you wish. You MUST run the demos in the same region where the cloudformation template (above) was run.
-1. [IAM & EC2 Demo](Documentation/1.IAMEC3.Demo.md)
+1. [IAM & EC2 Demo](Documentation/1.IAMEC2.Demo.md)
 2. [RDS] - In Progress
 3. [CloudTrail] - In Progress
