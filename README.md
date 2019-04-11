@@ -36,3 +36,4 @@ You must run the introduction demo first and then run whichever of the others yo
 1. [IAM & EC2 Demo](Documentation/1.IAMEC2.Demo.md)
 2. [RDS] - In Progress
 3. [CloudTrail] - In Progress
+4. [S3 Demo](Documentation/4.S3.Demo.md)
