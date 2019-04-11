@@ -1,0 +1,211 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "This creates the a pipeline to hook into github and transfer cloudformation files into S3.
+              Not exactly exciting stuff but very usedful :)"
+
+
+Parameters:
+  pProjectName:
+    Description: The Name of this project
+    Type: String
+    Default: consoledemos3
+  pPublicS3Bucket:
+    Description: The Public S3 Bucket that will be used to publish CF templates
+    Type: String
+    Default: github-limivorous
+  pRepositoryName:
+    Description: GitHub repository name
+    Type: String
+    Default: aws-console-demo
+  pBranchName:
+    Description: GitHub branch name
+    Type: String
+    Default: master
+  pGitHubOwner:
+    Description: The account in GitHub to use
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Default: GitHubOwner
+  pGitHubSecret:
+    Description: GitHub repository name
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Default: GitHubSecret
+
+Resources:
+
+  # Roles created for this pipeline.
+  # These will be created with a prefix to help find them later.
+
+  # Firstly a Role for Code Build to use to interact with S3 and logs.
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: 'CodeBuildRole-Console-Demo-CFN'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service: codebuild.amazonaws.com
+  CodeBuildServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: 'CodeBuildServicePolicy-Console-Demo-CFN'
+      Roles:
+        - !Ref CodeBuildServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: 'arn:aws:logs:*:*:*'
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub 'arn:aws:s3:::${pPublicS3Bucket}/*'
+              - !Sub "arn:aws:s3:::${CodePipelineInfrastructureArtifactStore}/*"
+
+  #A role for the pipeline itself
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: 'CodePipelineRole-Console-Demo-CFN'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+  CodePipelineServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodePipelineServicePolicy
+      Roles:
+        - !Ref CodePipelineServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: 'arn:aws:logs:*:*:*'
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${CodePipelineInfrastructureArtifactStore}/*"
+          - Effect: Allow
+            Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Resource:
+              - !GetAtt S3SiteDeployBuildProject.Arn
+
+
+
+
+  # Initially we need to define the codepipeline dependencies
+  # This is the CodeBuild service Role used by both the splitter CodeBuild and the AppBuild
+
+  # Where we store all the artifacts used within the pipeline
+  CodePipelineInfrastructureArtifactStore:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub ${pProjectName}.codepipeline.source
+      VersioningConfiguration:
+        Status: Enabled
+
+
+  # Define the first of our build projects - the first one just splits out or single artifact into multiple ones
+  # The second build project then puts the code into the appropriate bucket.
+  # We do this as all code is lumped together and needs to handled by different components.
+
+
+  S3SiteDeployBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: 'aws-console-demo-S3-DeploySite'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: linuxContainer
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/nodejs:7.0.0
+      Source:
+        BuildSpec: 'CodePipeline/buildspec_s3_deploy.yaml'
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 10
+
+
+
+  # Webhook to Github so that we can be notified of code changes
+  AppPipelineWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref pGitHubSecret
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: !Sub 'refs/heads/${pBranchName}'
+      TargetPipeline: !Ref CodePipelineStaticSite
+      TargetAction: GitHub-Source
+      Name: AWS-CodePipeline-to-GitHub
+      TargetPipelineVersion: !GetAtt CodePipelineStaticSite.Version
+      RegisterWithThirdParty: true
+
+
+  CodePipelineStaticSite:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: 'AWS-Console-Demo-GitHub-to-S3'
+      ArtifactStore:
+        Location: !Ref CodePipelineInfrastructureArtifactStore
+        Type: S3
+      RoleArn: !Sub '${CodePipelineServiceRole.Arn}'
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: GitHub-Source
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: GitHubContent
+              Configuration:
+                Owner: !Ref pGitHubOwner
+                Repo: !Ref pRepositoryName
+                Branch: !Ref pBranchName
+                OAuthToken: !Ref pGitHubSecret
+                PollForSourceChanges: false
+              RunOrder: 1
+        - Name: DeploytoS3
+          Actions:
+            - Name: DeploytoS3
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: GitHubContent
+              Configuration:
+                ProjectName: !Ref S3SiteDeployBuildProject
+              RunOrder: 1

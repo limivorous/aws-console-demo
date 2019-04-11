@@ -353,3 +353,24 @@ Resources:
       Name: "WindowsSSG"
       Type: String # AWS::EC2::SecurityGroup::Id
       Value: !Ref WindowsServerSecurityGroup
+
+  ###################################
+  #
+  #  IAM User & Groups
+  #
+  ###################################
+
+  DemoUserEC2ReadOnly:
+    Type: AWS::IAM::User
+    Properties:
+      Groups:
+        - !Ref DemoGroupEC2ReadOnly
+      Path: "/"
+      UserName: "Demo-User-EC2-RO"
+
+  DemoGroupEC2ReadOnly:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: "Demo-Group-EC2-RO"
+      ManagedPolicyArns: ["arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"]
+      Path: "/"

@@ -95,21 +95,48 @@ Resources:
   ###################################
 
 
-  SQLServerInstance:
-    Type: AWS::RDS::DBInstance
+  #SQLServerInstance:
+  #  Type: AWS::RDS::DBInstance
+  #  Properties:
+  #    AllocatedStorage: 20
+  #    AllowMajorVersionUpgrade: true
+  #    AutoMinorVersionUpgrade: true
+  #    DBInstanceClass: !Ref pDatabaseSize
+  #    DBInstanceIdentifier: !Ref pDatabaseName
+  #    DBSubnetGroupName: !Ref DataTierSubnetGroup
+  #    Engine: sqlserver-se
+  #    LicenseModel: license-included
+  #    MultiAZ: true
+  #    MasterUsername: !Ref pDBUsername
+  #    MasterUserPassword: !Ref pDBpassword
+  #    StorageType: gp2
+  #    StorageEncrypted: true
+  #    VPCSecurityGroups:
+   #     - !GetAtt DatabaseServerSecurityGroup.GroupId
+
+
+  RDSCluster:
+    Type: AWS::RDS::DBCluster
     Properties:
-      AllocatedStorage: 200
-      AllowMajorVersionUpgrade: true
-      AutoMinorVersionUpgrade: true
-      DBInstanceClass: !Ref pDatabaseSize
-      DBInstanceIdentifier: !Ref pDatabaseName
-      DBSubnetGroupName: !Ref DataTierSubnetGroup
-      Engine: sqlserver-se
-      LicenseModel: license-included
-      MultiAZ: true
       MasterUsername: !Ref pDBUsername
       MasterUserPassword: !Ref pDBpassword
-      StorageType: gp2
-      StorageEncrypted: true
-      VPCSecurityGroups:
-        - !GetAtt DatabaseServerSecurityGroup.GroupId
+      Engine: aurora
+      DBSubnetGroupName: !Ref DataTierSubnetGroup
+      #DBClusterParameterGroupName:
+       # Ref: RDSDBClusterParameterGroup
+  RDSDBInstance1:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName:
+        Ref: DataTierSubnetGroup
+      #DBParameterGroupName:
+      #  Ref: RDSDBParameterGroup
+      Engine: aurora
+      DBClusterIdentifier:
+        Ref: RDSCluster
+      PubliclyAccessible: 'false'
+      AvailabilityZone:
+        Fn::GetAtt:
+          - Subnet1
+          - AvailabilityZone
+      DBInstanceClass: db.r3.xlarge
